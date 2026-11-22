@@ -1,0 +1,310 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fondo de la Iglesia</title>
+<style>
+  :root { --bg:#f5f6f8; --card:#fff; --txt:#1d2433; --mut:#6b7385; --line:#e3e6ec;
+          --azul:#2b5cab; --verde:#1f8a4c; --rojo:#c0392b; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#12151c; --card:#1b2030; --txt:#e8ebf2; --mut:#9aa3b8; --line:#2a3145; --azul:#6f9bec; --verde:#4cc283; --rojo:#ef6f61; }
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; font:16px/1.4 system-ui, sans-serif; background:var(--bg); color:var(--txt); }
+  header { display:flex; justify-content:space-between; align-items:center; padding:12px 16px; background:var(--card); border-bottom:1px solid var(--line); }
+  h1 { font-size:18px; margin:0; }
+  main { max-width:960px; margin:0 auto; padding:16px; }
+  nav { display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap; }
+  button, select, input, textarea { font:inherit; color:inherit; }
+  button { padding:8px 14px; border:1px solid var(--line); border-radius:8px; background:var(--card); cursor:pointer; }
+  button.primario { background:var(--azul); color:#fff; border-color:var(--azul); }
+  button.activo { border-color:var(--azul); color:var(--azul); font-weight:600; }
+  button.peligro { color:var(--rojo); }
+  input, select, textarea { width:100%; padding:8px 10px; border:1px solid var(--line); border-radius:8px; background:var(--card); }
+  label { display:block; font-size:13px; color:var(--mut); margin:10px 0 3px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px; margin-bottom:14px; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px; }
+  .num { font-size:22px; font-weight:700; }
+  .ingreso { color:var(--verde); } .egreso { color:var(--rojo); }
+  .mut { color:var(--mut); font-size:13px; }
+  .barra { display:flex; gap:8px; align-items:end; flex-wrap:wrap; margin-bottom:12px; }
+  .barra > div { flex:1; min-width:140px; }
+  .tabla { overflow-x:auto; }
+  table { width:100%; border-collapse:collapse; }
+  th, td { text-align:left; padding:8px 6px; border-bottom:1px solid var(--line); white-space:nowrap; }
+  td.der, th.der { text-align:right; }
+  dialog { border:1px solid var(--line); border-radius:12px; background:var(--card); color:var(--txt); width:min(480px,94vw); }
+  dialog::backdrop { background:rgba(0,0,0,.45); }
+  .fila { display:flex; gap:10px; } .fila > div { flex:1; }
+  #error { color:var(--rojo); min-height:1.3em; }
+  [hidden] { display:none !important; }
+</style>
+</head>
+<body>
+
+<section id="login" style="max-width:360px;margin:15vh auto;padding:16px">
+  <div class="card">
+    <h1>Fondo de la Iglesia</h1>
+    <p class="mut">Escriba la clave de acceso.</p>
+    <input id="clave" type="password" autocomplete="current-password" placeholder="Clave">
+    <p id="loginError" class="egreso"></p>
+    <button id="entrar" class="primario" style="width:100%">Entrar</button>
+  </div>
+</section>
+
+<div id="app" hidden>
+  <header>
+    <h1>Fondo de la Iglesia</h1>
+    <button id="salir">Salir</button>
+  </header>
+  <main>
+    <nav>
+      <button data-vista="resumen" class="activo">Resumen</button>
+      <button data-vista="movimientos">Movimientos</button>
+      <button data-vista="categorias">Categorías</button>
+    </nav>
+    <p id="error"></p>
+
+    <section id="v-resumen"></section>
+
+    <section id="v-movimientos" hidden>
+      <div class="barra">
+        <div><label for="fTipo">Tipo</label>
+          <select id="fTipo"><option value="">Todos</option><option value="ingreso">Ingresos</option><option value="egreso">Egresos</option></select></div>
+        <button id="nuevo" class="primario">+ Nuevo movimiento</button>
+        <button id="exportar">Exportar CSV</button>
+      </div>
+      <div class="card tabla"><table id="tablaMov"></table></div>
+    </section>
+
+    <section id="v-categorias" hidden>
+      <div class="card">
+        <h3 style="margin-top:0">Nueva categoría</h3>
+        <div class="fila">
+          <div><label for="catNombre">Nombre</label><input id="catNombre" maxlength="80"></div>
+          <div><label for="catTipo">Tipo</label>
+            <select id="catTipo"><option value="ingreso">Ingreso</option><option value="egreso">Egreso</option></select></div>
+        </div>
+        <p><button id="catGuardar" class="primario">Agregar</button></p>
+      </div>
+      <div class="card tabla"><table id="tablaCat"></table></div>
+    </section>
+
+    <div class="card barra" id="selectorMes" style="margin-top:14px">
+      <div><label for="mes">Mes</label><input id="mes" type="month"></div>
+    </div>
+  </main>
+</div>
+
+<dialog id="dlg">
+  <form method="dialog" id="formMov">
+    <h3 id="dlgTitulo" style="margin-top:0">Movimiento</h3>
+    <div class="fila">
+      <div><label for="mFecha">Fecha</label><input id="mFecha" type="date" required></div>
+      <div><label for="mTipo">Tipo</label>
+        <select id="mTipo"><option value="ingreso">Ingreso</option><option value="egreso">Egreso</option></select></div>
+    </div>
+    <label for="mCategoria">Categoría</label><select id="mCategoria" required></select>
+    <div class="fila">
+      <div><label for="mMonto">Monto</label><input id="mMonto" type="number" min="0.01" step="0.01" required></div>
+      <div><label for="mMoneda">Moneda</label>
+        <select id="mMoneda"><option>CUP</option><option>USD</option><option>EUR</option></select></div>
+    </div>
+    <label for="mPersona">Persona (quien da / a quien se paga)</label><input id="mPersona" maxlength="120">
+    <label for="mDesc">Descripción</label><textarea id="mDesc" rows="2" maxlength="500"></textarea>
+    <label for="mComp">No. de recibo / comprobante</label><input id="mComp" maxlength="60">
+    <p id="dlgError" class="egreso"></p>
+    <div class="fila">
+      <button type="button" id="cancelar">Cancelar</button>
+      <button type="submit" id="guardar" class="primario">Guardar</button>
+    </div>
+  </form>
+</dialog>
+
+<script>
+const $ = (s) => document.querySelector(s);
+const esc = (t) => String(t ?? "").replace(/[&<>"']/g, (c) => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+const dinero = (n, mon) => new Intl.NumberFormat("es", { style:"currency", currency:mon }).format(n);
+
+let clave = "";
+try { clave = sessionStorage.getItem("clave") || ""; } catch {}
+let categorias = [];
+let editandoId = null;
+let vista = "resumen";
+
+// ---------- API ----------
+async function api(ruta, opciones = {}) {
+  const res = await fetch(ruta, {
+    ...opciones,
+    headers: { "Content-Type":"application/json", Authorization:"Bearer " + clave, ...(opciones.headers || {}) },
+  });
+  if (res.status === 401) { mostrarLogin("Clave incorrecta"); throw new Error("No autorizado"); }
+  const esJson = (res.headers.get("content-type") || "").includes("json");
+  const datos = esJson ? await res.json() : await res.blob();
+  if (!res.ok) throw new Error(datos.error || "Error en el servidor");
+  return datos;
+}
+const mostrarError = (e) => { $("#error").textContent = e ? e.message : ""; };
+
+// ---------- Acceso ----------
+function mostrarLogin(msg = "") {
+  $("#app").hidden = true; $("#login").hidden = false; $("#loginError").textContent = msg;
+  try { sessionStorage.removeItem("clave"); } catch {}
+  clave = "";
+}
+async function entrar() {
+  clave = $("#clave").value;
+  try {
+    categorias = await api("/api/categorias");
+    try { sessionStorage.setItem("clave", clave); } catch {}
+    $("#login").hidden = true; $("#app").hidden = false; $("#clave").value = "";
+    cambiarVista("resumen");
+  } catch (e) { if (e.message !== "No autorizado") $("#loginError").textContent = e.message; }
+}
+$("#entrar").onclick = entrar;
+$("#clave").onkeydown = (e) => { if (e.key === "Enter") entrar(); };
+$("#salir").onclick = () => mostrarLogin();
+
+// ---------- Fechas ----------
+$("#mes").value = new Date().toISOString().slice(0, 7);
+function rangoMes() {
+  const [y, m] = $("#mes").value.split("-").map(Number);
+  const ultimo = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  const mm = String(m).padStart(2, "0");
+  return { desde:`${y}-${mm}-01`, hasta:`${y}-${mm}-${String(ultimo).padStart(2, "0")}` };
+}
+const qs = () => { const r = rangoMes(); return `desde=${r.desde}&hasta=${r.hasta}`; };
+
+// ---------- Vistas ----------
+function cambiarVista(v) {
+  vista = v;
+  document.querySelectorAll("nav button").forEach((b) => b.classList.toggle("activo", b.dataset.vista === v));
+  for (const id of ["resumen", "movimientos", "categorias"]) $("#v-" + id).hidden = id !== v;
+  $("#selectorMes").hidden = v === "categorias";
+  recargar();
+}
+document.querySelectorAll("nav button").forEach((b) => (b.onclick = () => cambiarVista(b.dataset.vista)));
+$("#mes").onchange = recargar;
+$("#fTipo").onchange = recargar;
+
+async function recargar() {
+  mostrarError(null);
+  try {
+    if (vista === "resumen") await pintarResumen();
+    if (vista === "movimientos") await pintarMovimientos();
+    if (vista === "categorias") await pintarCategorias();
+  } catch (e) { if (e.message !== "No autorizado") mostrarError(e); }
+}
+
+async function pintarResumen() {
+  const d = await api("/api/resumen?" + qs());
+  const monedas = [...new Set([...d.totales_periodo, ...d.saldo_acumulado].map((x) => x.moneda))];
+  let html = "";
+  if (!monedas.length) html = `<div class="card mut">Todavía no hay movimientos.</div>`;
+  for (const mon of monedas) {
+    const p = d.totales_periodo.find((x) => x.moneda === mon) || { ingresos:0, egresos:0, balance:0 };
+    const a = d.saldo_acumulado.find((x) => x.moneda === mon) || { balance:0 };
+    html += `<div class="card"><strong>${esc(mon)}</strong>
+      <div class="grid" style="margin-top:8px">
+        <div><div class="mut">Ingresos del mes</div><div class="num ingreso">${dinero(p.ingresos, mon)}</div></div>
+        <div><div class="mut">Egresos del mes</div><div class="num egreso">${dinero(p.egresos, mon)}</div></div>
+        <div><div class="mut">Balance del mes</div><div class="num">${dinero(p.balance, mon)}</div></div>
+        <div><div class="mut">Saldo acumulado</div><div class="num">${dinero(a.balance, mon)}</div></div>
+      </div></div>`;
+  }
+  if (d.por_categoria.length) {
+    html += `<div class="card tabla"><h3 style="margin-top:0">Por categoría</h3><table>
+      <tr><th>Categoría</th><th>Tipo</th><th class="der">Total</th></tr>` +
+      d.por_categoria.map((c) => `<tr><td>${esc(c.categoria)}</td><td class="${c.tipo}">${c.tipo}</td>
+        <td class="der">${dinero(c.total, c.moneda)}</td></tr>`).join("") + `</table></div>`;
+  }
+  $("#v-resumen").innerHTML = html;
+}
+
+async function pintarMovimientos() {
+  const tipo = $("#fTipo").value;
+  const datos = await api(`/api/movimientos?${qs()}${tipo ? "&tipo=" + tipo : ""}`);
+  $("#tablaMov").innerHTML = `<tr><th>Fecha</th><th>Categoría</th><th>Persona</th><th>Descripción</th><th class="der">Monto</th><th></th></tr>` +
+    (datos.length ? datos.map((m) => `<tr>
+      <td>${esc(m.fecha)}</td><td>${esc(m.categoria)}</td><td>${esc(m.persona)}</td>
+      <td>${esc(m.descripcion)}</td>
+      <td class="der ${m.tipo}">${m.tipo === "egreso" ? "−" : "+"}${dinero(m.monto, m.moneda)}</td>
+      <td><button data-ed="${m.id}">Editar</button> <button class="peligro" data-del="${m.id}">Borrar</button></td></tr>`).join("")
+      : `<tr><td colspan="6" class="mut">Sin movimientos en este mes.</td></tr>`);
+  document.querySelectorAll("[data-ed]").forEach((b) => (b.onclick = () => abrirForm(datos.find((x) => x.id == b.dataset.ed))));
+  document.querySelectorAll("[data-del]").forEach((b) => (b.onclick = async () => {
+    if (!confirm("¿Borrar este movimiento?")) return;
+    try { await api("/api/movimientos/" + b.dataset.del, { method:"DELETE" }); recargar(); } catch (e) { mostrarError(e); }
+  }));
+}
+
+async function pintarCategorias() {
+  categorias = await api("/api/categorias");
+  $("#tablaCat").innerHTML = `<tr><th>Nombre</th><th>Tipo</th><th>Estado</th><th></th></tr>` +
+    categorias.map((c) => `<tr><td>${esc(c.nombre)}</td><td class="${c.tipo}">${c.tipo}</td>
+      <td>${c.activa ? "Activa" : "Oculta"}</td>
+      <td><button data-cat="${c.id}" data-act="${c.activa ? 0 : 1}">${c.activa ? "Ocultar" : "Activar"}</button></td></tr>`).join("");
+  document.querySelectorAll("[data-cat]").forEach((b) => (b.onclick = async () => {
+    try { await api("/api/categorias/" + b.dataset.cat, { method:"PATCH", body:JSON.stringify({ activa: b.dataset.act === "1" }) }); recargar(); }
+    catch (e) { mostrarError(e); }
+  }));
+}
+$("#catGuardar").onclick = async () => {
+  try {
+    await api("/api/categorias", { method:"POST", body:JSON.stringify({ nombre:$("#catNombre").value, tipo:$("#catTipo").value }) });
+    $("#catNombre").value = ""; recargar();
+  } catch (e) { mostrarError(e); }
+};
+
+// ---------- Formulario de movimiento ----------
+function llenarCategorias(tipo, seleccionada) {
+  $("#mCategoria").innerHTML = categorias.filter((c) => c.tipo === tipo && (c.activa || c.id === seleccionada))
+    .map((c) => `<option value="${c.id}">${esc(c.nombre)}</option>`).join("");
+  if (seleccionada) $("#mCategoria").value = seleccionada;
+}
+$("#mTipo").onchange = () => llenarCategorias($("#mTipo").value);
+
+function abrirForm(m) {
+  editandoId = m ? m.id : null;
+  $("#dlgTitulo").textContent = m ? "Editar movimiento" : "Nuevo movimiento";
+  $("#dlgError").textContent = "";
+  $("#mFecha").value = m ? m.fecha : new Date().toISOString().slice(0, 10);
+  $("#mTipo").value = m ? m.tipo : "ingreso";
+  llenarCategorias($("#mTipo").value, m ? m.categoria_id : undefined);
+  $("#mMonto").value = m ? m.monto : "";
+  $("#mMoneda").value = m ? m.moneda : "CUP";
+  $("#mPersona").value = m?.persona || ""; $("#mDesc").value = m?.descripcion || ""; $("#mComp").value = m?.comprobante || "";
+  $("#dlg").showModal();
+}
+$("#nuevo").onclick = () => abrirForm(null);
+$("#cancelar").onclick = () => $("#dlg").close();
+$("#formMov").onsubmit = async (e) => {
+  e.preventDefault();
+  const cuerpo = {
+    fecha:$("#mFecha").value, tipo:$("#mTipo").value, categoria_id:Number($("#mCategoria").value),
+    monto:Number($("#mMonto").value), moneda:$("#mMoneda").value,
+    persona:$("#mPersona").value, descripcion:$("#mDesc").value, comprobante:$("#mComp").value,
+  };
+  try {
+    await api(editandoId ? "/api/movimientos/" + editandoId : "/api/movimientos",
+      { method: editandoId ? "PUT" : "POST", body: JSON.stringify(cuerpo) });
+    $("#dlg").close(); recargar();
+  } catch (err) { $("#dlgError").textContent = err.message; }
+};
+
+// ---------- Exportar ----------
+$("#exportar").onclick = async () => {
+  try {
+    const blob = await api("/api/export.csv?" + qs());
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob); a.download = `fondo-iglesia_${$("#mes").value}.csv`; a.click();
+    URL.revokeObjectURL(a.href);
+  } catch (e) { mostrarError(e); }
+};
+
+// Si ya hay clave en la sesión, entrar directo
+if (clave) { $("#clave").value = clave; entrar(); }
+</script>
+</body>
+</html>

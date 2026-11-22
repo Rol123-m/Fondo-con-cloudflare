@@ -1,0 +1,27 @@
+// wrangler.jsonc
+{
+  "name": "fondo-de-la-iglesia",
+  "main": "src/index.ts",
+  "compatibility_date": "2025-03-07",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
+  },
+  // Frontend estático (public/index.html)
+  "assets": {
+    "directory": "./public/",
+    "binding": "ASSETS"
+  },
+  // Base de datos D1
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "fondo-de-la-iglesia",
+      "database_id": "ce9fa460-fd4c-40e0-a5d5-cd63eabf9170",
+      "migrations_dir": "migrations"
+    }
+  ]
+  // La clave de acceso NO va aquí. Se guarda como secreto:
+  //   npx wrangler secret put ACCESS_KEY
+}
